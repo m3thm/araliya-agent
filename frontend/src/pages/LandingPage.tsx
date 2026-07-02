@@ -318,7 +318,7 @@ export default function LandingPage() {
                 Backed by <span className="text-brand">Sri Lanka's largest</span> gifting marketplace.
               </h2>
               <p className="text-lg text-ink/70 leading-relaxed">
-                Araliya doesn't maintain its own warehouse — she shops Kapruka in real time, Sri
+                Araliya doesn't maintain its own warehouse — It shops Kapruka in real time, Sri
                 Lanka's largest e-commerce platform, live since 2003 and publicly listed on the
                 Colombo Stock Exchange. Thousands of local sellers list on Kapruka, giving Araliya
                 over 125,000 products to search across flowers, cakes, sweets, electronics,
