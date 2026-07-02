@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/*
+  ── Design tokens ──────────────────────────────────────────────────────
+  Flat/solid design system for the whole app (landing, auth, chat) — this
+  replaced an earlier liquid-glass look, which has been fully removed.
+
+  This @theme block is the ONE place to edit to re-theme the app — every
+  component reads color via Tailwind classes (bg-brand, text-ink, etc.)
+  which are generated directly from these values. Tailwind v4 needs
+  literal values here (not var() indirection) to reliably generate the
+  utility classes.
+*/
+@theme {
+  --color-brand: #7d1935;
+  --color-brand-dark: #5c1226;
+  --color-surface: #f6f2ea;
+  --color-surface-card: #ffffff;
+  --color-border: #e8e1d3;
+  --color-ink: #2a1f22;
+  --color-accent: #c0432a;
+  --color-success: #2f8f4e;
+  --color-danger: #c23b3b;
+  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --font-sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+/* ─────────────────────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Hide scrollbars on scrollable panels (cart, sidebar, product carousel)
+   while keeping them scrollable — used via the scrollbar-hide class. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce {
+    animation: none !important;
+  }
+}
+
+/* Smooth in-page scrolling for the landing page's anchor nav (How it Works,
+   For Expats, Kapruka Network) — skipped entirely when the user prefers
+   reduced motion, in which case anchor clicks jump instantly as before. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
