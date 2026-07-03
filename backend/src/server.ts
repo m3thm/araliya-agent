@@ -1138,7 +1138,10 @@ app.post("/api/chat", async (req, res) => {
           "Sorry that took a bit long — here's what I found so far. Let me know if you'd like more options.";
         events.push({
           type: "text",
-          content: language === "si" ? await translateFromEnglish(fallbackText, "si") : fallbackText,
+          content:
+            language === "si"
+              ? await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()))
+              : fallbackText,
         });
         persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt());
       } else {
@@ -1146,7 +1149,10 @@ app.post("/api/chat", async (req, res) => {
           "Sorry, that's taking a moment longer than expected — could you try that again?";
         events.push({
           type: "text",
-          content: language === "si" ? await translateFromEnglish(fallbackText, "si") : fallbackText,
+          content:
+            language === "si"
+              ? await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()))
+              : fallbackText,
         });
         persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt());
       }
@@ -1180,7 +1186,10 @@ app.post("/api/chat", async (req, res) => {
 
       events.push({
         type: "text",
-        content: language === "si" ? await translateFromEnglish(finalContent, "si") : finalContent,
+        content:
+          language === "si"
+            ? await translateFromEnglish(finalContent, "si", Array.from(productCache.values()))
+            : finalContent,
       });
       // Load-bearing — the model's reply must be in DB so the next turn sees it.
       // Always persisted in English, regardless of the display language —
