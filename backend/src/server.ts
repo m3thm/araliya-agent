@@ -54,7 +54,7 @@ interface MessageRow {
 // ── Context reconstruction ────────────────────────────────────────────────────
 // These mirror the summarize* helpers in the frontend's messageStore.ts.
 // They live here now because the backend is the one rebuilding context from DB
-// rows — the frontend no longer sends history at all.
+// rows.
 
 const REQUIRED_GIFT_FIELDS = [
   "recipientName",
@@ -315,7 +315,7 @@ const CONVERT_CURRENCY_TOOL: OpenAIToolDef = {
 };
 
 const SYSTEM_INTRO =
-  "You are a warm, concise gift shopping concierge for Kapruka, a Sri " +
+  "You are Araliya. A warm, concise gift shopping concierge for Kapruka, a Sri " +
   "Lankan online gift and grocery store.\n\n";
 
 const SYSTEM_RULES =
@@ -393,9 +393,7 @@ const SYSTEM_RULES =
 // ── Persona variants ──────────────────────────────────────────────────────
 // Appended to SYSTEM_PROMPT based on the `persona` field the frontend sends
 // with each /api/chat call. "concierge" is the default/balanced behavior
-// already fully specified above, so it adds nothing extra. Keep these
-// short — they're a tone/emphasis nudge on top of the rules above, not a
-// replacement for them.
+// already fully specified above, so it adds nothing extra. 
 const PERSONA_PROMPTS: Record<string, string> = {
   concierge: "",
   traditional:
@@ -422,7 +420,7 @@ function buildSystemPrompt(persona: string | undefined): string {
 
 const app = express();
 
-// CORS_ORIGIN is a comma-separated list of allowed origins (e.g. your Vercel
+// CORS_ORIGIN is a comma-separated list of allowed origins (e.g. Vercel
 // deployment's URL). Left unset, CORS stays wide open — the same permissive
 // default this app has always used locally — so this is opt-in stricter
 // behavior for production, not a breaking change for anyone still running
