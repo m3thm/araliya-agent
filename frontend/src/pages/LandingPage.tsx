@@ -241,7 +241,7 @@ export default function LandingPage() {
             </h2>
             <p className="text-lg text-ink/70 leading-relaxed">
               Every panel in the app — cart, checkout, order history — has a conversational shortcut. Ask for it
-              and Araliya does it herself, or reach for the UI directly. Nothing you do one way is invisible to
+              and Araliya does it for you, or reach for the UI directly. Nothing you do one way is invisible to
               the other.
             </p>
           </div>
