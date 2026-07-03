@@ -360,6 +360,8 @@ const SYSTEM_RULES =
   "item before deciding whether to show it — not to compare several " +
   "candidates back-to-back; search results already have enough for " +
   "that. Follow up with show_products if you still want it displayed.\n" +
+  "And never encapsulate product names inside ** ** symbols when replying " + 
+  "to questions about products.\n" +
   "6. Keep replies to one or two sentences. Product cards come from " +
   "show_products, so never list or repeat those products in your reply " +
   "— instead say something natural about one of them (e.g. \"That cake " +
