@@ -1144,29 +1144,23 @@ app.post("/api/chat", async (req, res) => {
         }
         const fallbackText =
           "Sorry that took a bit long — here's what I found so far. Let me know if you'd like more options.";
-        const fallbackSiText =
-          language === "si"
-            ? await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()))
-            : null;
+        const fallbackSi = await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()));
         events.push({
           type: "text",
           content: fallbackText,
-          ...(fallbackSiText ? { content_si: fallbackSiText } : {}),
+          content_si: fallbackSi,
         });
-        persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt(), fallbackSiText);
+        persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt(), fallbackSi);
       } else {
         const fallbackText2 =
           "Sorry, that's taking a moment longer than expected — could you try that again?";
-        const fallbackSiText2 =
-          language === "si"
-            ? await translateFromEnglish(fallbackText2, "si", Array.from(productCache.values()))
-            : null;
+        const fallbackSi2 = await translateFromEnglish(fallbackText2, "si", Array.from(productCache.values()));
         events.push({
           type: "text",
           content: fallbackText2,
-          ...(fallbackSiText2 ? { content_si: fallbackSiText2 } : {}),
+          content_si: fallbackSi2,
         });
-        persistMessageBestEffort(conversationId, "bot", "text", fallbackText2, null, nextCreatedAt(), fallbackSiText2);
+        persistMessageBestEffort(conversationId, "bot", "text", fallbackText2, null, nextCreatedAt(), fallbackSi2);
       }
     } else {
       const looksLikeTagEcho = (text: string) =>
@@ -1196,19 +1190,16 @@ app.post("/api/chat", async (req, res) => {
             : "Sorry, I glitched there for a second — could you say that again?";
       }
 
-      const siContent =
-        language === "si"
-          ? await translateFromEnglish(finalContent, "si", Array.from(productCache.values()))
-          : null;
+      const siContent = await translateFromEnglish(finalContent, "si", Array.from(productCache.values()));
       events.push({
         type: "text",
         content: finalContent,
-        ...(siContent ? { content_si: siContent } : {}),
+        content_si: siContent,
       });
       // Load-bearing — the model's reply must be in DB so the next turn sees it.
-      // Always persisted in English, regardless of the display language —
-      // this is what future turns' history reconstruction feeds back to the
-      // model, and it should only ever see English there.
+      // Persisted in English (content) and Sinhala (content_si) so the frontend
+      // can display either language depending on the user's toggle — without
+      // needing a re-translation on page reload or toggle switch.
       await persistMessage(conversationId, "bot", "text", finalContent, null, nextCreatedAt(), undefined, siContent);
     }
 
