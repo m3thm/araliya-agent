@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
-import { Menu, ShoppingBag, LogOut, ChevronDown, User, Heart, Package } from "lucide-react";
+import { Menu, ShoppingBag, LogOut, ChevronDown, User, Heart, Package, Languages } from "lucide-react";
 import { useCartStore } from "../store/cartStore";
 import { useUiStore } from "../store/uiStore";
 import { useAuthStore } from "../store/authStore";
 import { usePrefsStore } from "../store/prefsStore";
 import { useSavedProductsStore } from "../store/savedProductsStore";
-import { DISPLAY_CURRENCIES, type Persona, type DisplayCurrency } from "../types";
+import { DISPLAY_CURRENCIES, type Persona, type DisplayCurrency, type Language } from "../types";
 import Dropdown, { DropdownLabel, DropdownSeparator, DropdownItem } from "./ui/Dropdown";
 
 const PERSONAS: Record<Persona, { label: string; hint: string }> = {
   concierge: { label: "Concierge", hint: "Balanced, warm recommendations" },
   traditional: { label: "Gift Expert", hint: "Heritage-first, traditional picks" },
   budget: { label: "Budget Hunter", hint: "Best value under your budget" },
+};
+
+const LANGUAGES: Record<Language, { label: string; nativeLabel: string }> = {
+  en: { label: "English", nativeLabel: "English" },
+  si: { label: "Sinhala", nativeLabel: "සිංහල" },
 };
 
 export default function Header() {
@@ -26,6 +31,8 @@ export default function Header() {
   const setPersona = usePrefsStore((s) => s.setPersona);
   const currency = usePrefsStore((s) => s.currency);
   const setCurrency = usePrefsStore((s) => s.setCurrency);
+  const language = usePrefsStore((s) => s.language);
+  const setLanguage = usePrefsStore((s) => s.setLanguage);
 
   const savedCount = useSavedProductsStore((s) => s.items.length);
 
@@ -79,6 +86,38 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+        <Dropdown
+          triggerClassName="h-9 px-2.5 sm:px-3 rounded-full hover:bg-white/10 text-xs font-semibold transition-colors inline-flex items-center gap-1"
+          align="end"
+          trigger={
+            <>
+              <Languages className="size-4 sm:hidden" />
+              <span className="hidden sm:inline">{LANGUAGES[language].nativeLabel}</span>
+              <ChevronDown className="size-3 hidden sm:inline" />
+            </>
+          }
+        >
+          <DropdownLabel>Reply language</DropdownLabel>
+          <DropdownSeparator />
+          {(Object.keys(LANGUAGES) as Language[]).map((key) => (
+            <DropdownItem key={key} onClick={() => setLanguage(key)}>
+              <span className="flex-1 flex items-center justify-between">
+                <span>
+                  {LANGUAGES[key].nativeLabel}
+                  {LANGUAGES[key].nativeLabel !== LANGUAGES[key].label && (
+                    <span className="text-ink/40"> · {LANGUAGES[key].label}</span>
+                  )}
+                </span>
+                {language === key && <span className="text-brand">✓</span>}
+              </span>
+            </DropdownItem>
+          ))}
+          <DropdownSeparator />
+          <p className="px-3.5 pb-1 text-[11px] text-ink/40 leading-relaxed">
+            You can type in Sinhala either way — Araliya understands it regardless of this setting.
+          </p>
+        </Dropdown>
+
         <Dropdown
           triggerClassName="h-9 px-3 rounded-full hover:bg-white/10 text-xs font-semibold transition-colors inline-flex items-center gap-1"
           align="end"

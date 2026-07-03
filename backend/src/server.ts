@@ -9,6 +9,7 @@ import { parseProductsFromToolResult, type Product } from "./normalizeProduct.js
 import type { OpenAIToolDef } from "./mcpClient.js";
 import { supabaseAdmin } from "./supabaseAdmin.js";
 import { fetchLkrRates, convertCurrency } from "./currency.js";
+import { detectAndTranslateToEnglish, translateFromEnglish } from "./translate.js";
 
 // ── Shape the frontend's cartStore expects ───────────────────────────────────
 interface CartItem {
@@ -47,6 +48,13 @@ interface MessageRow {
   role: "user" | "bot";
   type: "text" | "product" | "tool-call" | "checkout-prep";
   content: string | null;
+  // English translation of `content`, populated only for user rows that
+  // arrived in a non-English language. `content` itself stays exactly what
+  // the shopper typed, for faithful UI display; this is what LLM context
+  // reconstruction uses instead, so Sinhala never leaks back into the
+  // model on later turns. Null means `content` was already English (or
+  // this is an older row from before translation support existed).
+  content_en: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
 }
@@ -54,7 +62,7 @@ interface MessageRow {
 // ── Context reconstruction ────────────────────────────────────────────────────
 // These mirror the summarize* helpers in the frontend's messageStore.ts.
 // They live here now because the backend is the one rebuilding context from DB
-// rows.
+// rows — the frontend no longer sends history at all.
 
 const REQUIRED_GIFT_FIELDS = [
   "recipientName",
@@ -126,7 +134,12 @@ async function loadConversationHistory(conversationId: string): Promise<ChatMess
       flushProducts();
       entries.push({
         role: row.role === "user" ? "user" : "assistant",
-        content: row.content,
+        // Prefer the English translation for user rows so the model's
+        // context is always English, even for a Sinhala message typed
+        // several turns ago — otherwise Sinhala accumulates back into
+        // the prompt on every subsequent turn, defeating the point of
+        // translating it in the first place.
+        content: row.role === "user" ? row.content_en ?? row.content : row.content,
       });
     } else if (row.type === "product" && row.payload) {
       // payload is the full Product object
@@ -315,7 +328,7 @@ const CONVERT_CURRENCY_TOOL: OpenAIToolDef = {
 };
 
 const SYSTEM_INTRO =
-  "You are Araliya. A warm, concise gift shopping concierge for Kapruka, a Sri " +
+  "You are a warm, concise gift shopping concierge for Kapruka, a Sri " +
   "Lankan online gift and grocery store.\n\n";
 
 const SYSTEM_RULES =
@@ -393,7 +406,9 @@ const SYSTEM_RULES =
 // ── Persona variants ──────────────────────────────────────────────────────
 // Appended to SYSTEM_PROMPT based on the `persona` field the frontend sends
 // with each /api/chat call. "concierge" is the default/balanced behavior
-// already fully specified above, so it adds nothing extra. 
+// already fully specified above, so it adds nothing extra. Keep these
+// short — they're a tone/emphasis nudge on top of the rules above, not a
+// replacement for them.
 const PERSONA_PROMPTS: Record<string, string> = {
   concierge: "",
   traditional:
@@ -420,7 +435,7 @@ function buildSystemPrompt(persona: string | undefined): string {
 
 const app = express();
 
-// CORS_ORIGIN is a comma-separated list of allowed origins (e.g. Vercel
+// CORS_ORIGIN is a comma-separated list of allowed origins (e.g. your Vercel
 // deployment's URL). Left unset, CORS stays wide open — the same permissive
 // default this app has always used locally — so this is opt-in stricter
 // behavior for production, not a breaking change for anyone still running
@@ -460,10 +475,19 @@ async function persistMessage(
   type: "text" | "product" | "tool-call" | "checkout-prep",
   content: string | null,
   payload: Record<string, unknown> | null,
-  createdAt: string
+  createdAt: string,
+  contentEn: string | null = null
 ): Promise<void> {
   const db = supabaseAdmin();
-  const row = { conversation_id: conversationId, role, type, content, payload, created_at: createdAt };
+  const row = {
+    conversation_id: conversationId,
+    role,
+    type,
+    content,
+    content_en: contentEn,
+    payload,
+    created_at: createdAt,
+  };
 
   const { error: firstError } = await db.from("messages").insert(row);
   if (!firstError) return;
@@ -604,12 +628,14 @@ async function verifyJwt(authHeader: string | undefined): Promise<string | null>
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message, conversationId, cartItems, persona, orders } = req.body as {
+    const { message, conversationId, cartItems, persona, orders, language } = req.body as {
       message: string;
       conversationId: string;
       cartItems?: Array<{ productId: string; name: string; quantity: number; price: number }>;
       persona?: string;
       orders?: OrderContext[];
+      /** "si" translates the assistant's replies to Sinhala for display; anything else (or omitted) leaves them in English. Independent of input — a Sinhala message is auto-detected and translated to English regardless of this setting. */
+      language?: string;
     };
 
     if (!message || typeof message !== "string") {
@@ -648,12 +674,31 @@ app.post("/api/chat", async (req, res) => {
     let sequenceCounter = 0;
     const nextCreatedAt = () => new Date(requestStartedAt + sequenceCounter++).toISOString();
 
+    // ── Auto-detect + translate non-English input ────────────────────────────
+    // Independent of the `language` toggle (which only controls the reply
+    // direction) — a shopper might type Sinhala even with the toggle set to
+    // English, and the model should never have to parse it either way.
+    const inputTranslation = await detectAndTranslateToEnglish(message);
+    if (inputTranslation.wasTranslated) {
+      console.log(
+        `[chat] translated input from ${inputTranslation.detectedLanguage ?? "unknown"}: "${message}" → "${inputTranslation.text}"`
+      );
+    }
+
     // ── Persist the user message first ───────────────────────────────────────
     // Load-bearing write — if it fails the next turn reconstructs context
     // without the user's message and the model appears to have amnesia.
     // Return a 500 rather than silently proceeding with a broken history.
     try {
-      await persistMessage(conversationId, "user", "text", message, null, nextCreatedAt());
+      await persistMessage(
+        conversationId,
+        "user",
+        "text",
+        message,
+        null,
+        nextCreatedAt(),
+        inputTranslation.wasTranslated ? inputTranslation.text : null
+      );
     } catch (err) {
       console.error("[chat] could not persist user message — aborting turn:", err);
       return res.status(500).json({
@@ -1091,12 +1136,18 @@ app.post("/api/chat", async (req, res) => {
         }
         const fallbackText =
           "Sorry that took a bit long — here's what I found so far. Let me know if you'd like more options.";
-        events.push({ type: "text", content: fallbackText });
+        events.push({
+          type: "text",
+          content: language === "si" ? await translateFromEnglish(fallbackText, "si") : fallbackText,
+        });
         persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt());
       } else {
         const fallbackText =
           "Sorry, that's taking a moment longer than expected — could you try that again?";
-        events.push({ type: "text", content: fallbackText });
+        events.push({
+          type: "text",
+          content: language === "si" ? await translateFromEnglish(fallbackText, "si") : fallbackText,
+        });
         persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt());
       }
     } else {
@@ -1127,8 +1178,14 @@ app.post("/api/chat", async (req, res) => {
             : "Sorry, I glitched there for a second — could you say that again?";
       }
 
-      events.push({ type: "text", content: finalContent });
+      events.push({
+        type: "text",
+        content: language === "si" ? await translateFromEnglish(finalContent, "si") : finalContent,
+      });
       // Load-bearing — the model's reply must be in DB so the next turn sees it.
+      // Always persisted in English, regardless of the display language —
+      // this is what future turns' history reconstruction feeds back to the
+      // model, and it should only ever see English there.
       await persistMessage(conversationId, "bot", "text", finalContent, null, nextCreatedAt());
     }
 

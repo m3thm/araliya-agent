@@ -1,17 +1,19 @@
 import { create } from "zustand";
 import { supabase } from "../lib/supabaseClient";
 import { fetchLkrRates, convertFromLkr, formatMoney } from "../lib/currency";
-import type { Persona, DisplayCurrency } from "../types";
+import type { Persona, DisplayCurrency, Language } from "../types";
 
 interface PrefsStore {
   persona: Persona;
   currency: DisplayCurrency;
+  language: Language;
   loaded: boolean;
   rates: Record<string, number> | null;
 
   loadPrefs: () => Promise<void>;
   setPersona: (persona: Persona) => void;
   setCurrency: (currency: DisplayCurrency) => void;
+  setLanguage: (language: Language) => void;
 
   /** Convert + format an LKR amount for display in the user's chosen currency. */
   formatPrice: (amountLkr: number) => string;
@@ -20,6 +22,7 @@ interface PrefsStore {
 export const usePrefsStore = create<PrefsStore>((set, get) => ({
   persona: "concierge",
   currency: "LKR",
+  language: "en",
   loaded: false,
   rates: null,
 
@@ -42,7 +45,7 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
 
     const { data, error } = await supabase
       .from("user_prefs")
-      .select("persona, currency")
+      .select("persona, currency, language")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -56,6 +59,7 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
       set({
         persona: (data.persona as Persona) ?? "concierge",
         currency: (data.currency as DisplayCurrency) ?? "LKR",
+        language: (data.language as Language) ?? "en",
         loaded: true,
       });
     } else {
@@ -76,6 +80,11 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
     void persistPrefs({ currency });
   },
 
+  setLanguage: (language) => {
+    set({ language });
+    void persistPrefs({ language });
+  },
+
   formatPrice: (amountLkr) => {
     const { currency, rates } = get();
     const converted = convertFromLkr(amountLkr, currency, rates);
@@ -83,7 +92,7 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
   },
 }));
 
-async function persistPrefs(patch: Partial<{ persona: Persona; currency: DisplayCurrency }>) {
+async function persistPrefs(patch: Partial<{ persona: Persona; currency: DisplayCurrency; language: Language }>) {
   if (!supabase) return;
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData.user?.id;

@@ -84,6 +84,13 @@ export type CheckoutStatus =
 
 export type Persona = "concierge" | "traditional" | "budget";
 
+// "en" leaves the assistant's replies in English. "si" translates them to
+// Sinhala for display. Independent of input — a Sinhala message is
+// auto-detected and translated to English regardless of this setting, so
+// switching this back to "en" doesn't require typing in English too.
+export type Language = "en" | "si";
+
+
 // Kept intentionally small — this is a *display* currency for browsing
 // prices, not something checkout ever uses. Real checkout is always LKR,
 // since that's the only currency Kapruka accepts.

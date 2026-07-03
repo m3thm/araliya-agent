@@ -20,7 +20,8 @@ export async function sendMessage(
   conversationId: string,
   cartItems?: CartItem[],
   persona?: string,
-  orders?: OrderChatContext[]
+  orders?: OrderChatContext[],
+  language?: string
 ): Promise<{ events: ChatEvent[]; generatedTitle: string | null }> {
   // Get the current session token. supabase is guaranteed non-null when
   // the user is authenticated (AuthScreen guards the main UI), but we
@@ -34,7 +35,7 @@ export async function sendMessage(
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ message, conversationId, cartItems, persona, orders }),
+    body: JSON.stringify({ message, conversationId, cartItems, persona, orders, language }),
   });
 
   if (!response.ok) {

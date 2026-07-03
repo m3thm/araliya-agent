@@ -36,6 +36,7 @@ export default function InputBar() {
   const clearComposerDraft = useUiStore((s) => s.clearComposerDraft);
 
   const persona = usePrefsStore((s) => s.persona);
+  const language = usePrefsStore((s) => s.language);
 
   const activeConversationId = useConversationStore((s) => s.activeConversationId);
   const setConversationTitle = useConversationStore((s) => s.setConversationTitle);
@@ -68,7 +69,8 @@ export default function InputBar() {
         activeConversationId,
         cartItems,
         persona,
-        ordersChatContext()
+        ordersChatContext(),
+        language
       );
 
       for (const event of events) {
@@ -111,7 +113,7 @@ export default function InputBar() {
     } finally {
       setTyping(false);
     }
-  }, [value, isTyping, activeConversationId, cartItems, persona, ordersChatContext]);
+  }, [value, isTyping, activeConversationId, cartItems, persona, ordersChatContext, language]);
 
   useEffect(() => {
     if (!isTyping) textareaRef.current?.focus();
