@@ -132,6 +132,30 @@ function escapeRegExp(text: string): string {
 }
 
 /**
+ * For a multi-word product name like "Royal Lily Bouquet", returns all
+ * contiguous word-aligned sub-phrases of 2+ words: ["Royal Lily Bouquet",
+ * "Royal Lily", "Lily Bouquet"]. Single-word names return just themselves.
+ * This lets protectProductNames match partial mentions of a product name
+ * (e.g. "Royal Lily" in "The Royal Lily is perfect") without generating
+ * single-word sub-phrases that would cause false positives on common words
+ * like "Lily" or "Rose" appearing in unrelated contexts.
+ */
+function getSubPhrases(name: string): string[] {
+  const trimmed = name.trim();
+  if (!trimmed) return [];
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 1) return [trimmed];
+
+  const phrases: string[] = [];
+  for (let len = words.length; len >= 2; len--) {
+    for (let start = 0; start + len <= words.length; start++) {
+      phrases.push(words.slice(start, start + len).join(" "));
+    }
+  }
+  return phrases;
+}
+
+/**
  * HTML-escapes `text`, then wraps any of `names` that appear in it with
  * <span class="notranslate">, so Azure's translator leaves that exact
  * substring untouched. Longest names are matched first so e.g. "Royal Lily
@@ -139,13 +163,21 @@ function escapeRegExp(text: string): string {
  * separately inside it, and matched ranges are tracked so no character is
  * wrapped twice. Matching is case-insensitive but the original casing as
  * it appears in `text` is preserved in the output.
+ *
+ * Partial-name support: if a multi-word product name doesn't appear in full
+ * (e.g. the AI said "Royal Lily" instead of "Royal Lily Bouquet"), the
+ * function also matches word-aligned sub-phrases of 2+ words, so partial
+ * mentions still get protection. Single-word sub-phrases are excluded to
+ * avoid flagging common words in unrelated contexts.
  */
 export function protectProductNames(text: string, names: string[]): string {
   const escapedText = escapeHtml(text);
 
-  const uniqueNames = Array.from(
-    new Set(names.map((n) => n.trim()).filter((n) => n.length > 0))
-  ).sort((a, b) => b.length - a.length);
+  // Expand each product name into its word-aligned sub-phrases so partial
+  // mentions (e.g. "Royal Lily" when the full name is "Royal Lily Bouquet")
+  // are still protected from translation.
+  const expanded = names.flatMap((n) => getSubPhrases(n.trim())).filter((n) => n.length > 0);
+  const uniqueNames = Array.from(new Set(expanded)).sort((a, b) => b.length - a.length);
 
   if (uniqueNames.length === 0) return escapedText;
 
