@@ -52,6 +52,7 @@ interface MessageRow {
   role: "user" | "bot";
   type: "text" | "product" | "tool-call" | "checkout-prep";
   content: string | null;
+  content_si: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
 }
@@ -62,7 +63,7 @@ interface MessageStore {
   messages: ChatMessageItem[];
   loadingHistory: boolean;
   addUserMessage: (content: string) => ChatMessageItem;
-  addBotText: (content: string) => void;
+  addBotText: (content: string, content_si?: string) => void;
   addBotToolCall: (label: string) => void;
   addBotProduct: (product: ChatMessageItem["product"]) => void;
   /** Not rendered — exists so history() can tell the model this already happened. */
@@ -98,9 +99,9 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
     return message;
   },
 
-  addBotText: (content) => {
+  addBotText: (content, content_si) => {
     set((state) => ({
-      messages: [...state.messages, { id: makeId(), role: "bot", type: "text", content }],
+      messages: [...state.messages, { id: makeId(), role: "bot", type: "text", content, content_si }],
     }));
   },
 
@@ -161,6 +162,7 @@ export const useMessageStore = create<MessageStore>((set, get) => ({
           role: row.role,
           type: "text",
           content: row.content ?? "",
+          content_si: row.content_si ?? undefined,
         };
       }
       if (row.type === "product") {

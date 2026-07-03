@@ -36,7 +36,7 @@ interface OrderContext {
 type ChatEvent =
   | { type: "tool-call"; label: string }
   | { type: "product"; product: Product }
-  | { type: "text"; content: string }
+  | { type: "text"; content: string; content_si?: string }
   | { type: "checkout-prep"; giftDetails: Record<string, unknown> }
   | { type: "add-to-cart"; items: CartItem[] }
   | { type: "order-tracked"; order: Record<string, unknown> };
@@ -55,6 +55,11 @@ interface MessageRow {
   // model on later turns. Null means `content` was already English (or
   // this is an older row from before translation support existed).
   content_en: string | null;
+  // Sinhala translation of `content`, populated only for bot rows
+  // that were translated for display. Null means the message was
+  // generated while the language toggle was English (or is an older
+  // row from before Sinhala support existed).
+  content_si: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
 }
@@ -476,7 +481,8 @@ async function persistMessage(
   content: string | null,
   payload: Record<string, unknown> | null,
   createdAt: string,
-  contentEn: string | null = null
+  contentEn: string | null = null,
+  contentSi: string | null = null
 ): Promise<void> {
   const db = supabaseAdmin();
   const row = {
@@ -485,6 +491,7 @@ async function persistMessage(
     type,
     content,
     content_en: contentEn,
+    content_si: contentSi,
     payload,
     created_at: createdAt,
   };
@@ -525,9 +532,10 @@ function persistMessageBestEffort(
   type: "text" | "product" | "tool-call" | "checkout-prep",
   content: string | null,
   payload: Record<string, unknown> | null,
-  createdAt: string
+  createdAt: string,
+  contentSi: string | null = null
 ): void {
-  persistMessage(conversationId, role, type, content, payload, createdAt).catch((err) => {
+  persistMessage(conversationId, role, type, content, payload, createdAt, undefined, contentSi).catch((err) => {
     console.error(`[db] best-effort persist of ${role}/${type} permanently failed:`, err);
   });
 }
@@ -1136,25 +1144,29 @@ app.post("/api/chat", async (req, res) => {
         }
         const fallbackText =
           "Sorry that took a bit long — here's what I found so far. Let me know if you'd like more options.";
+        const fallbackSiText =
+          language === "si"
+            ? await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()))
+            : null;
         events.push({
           type: "text",
-          content:
-            language === "si"
-              ? await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()))
-              : fallbackText,
+          content: fallbackText,
+          ...(fallbackSiText ? { content_si: fallbackSiText } : {}),
         });
-        persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt());
+        persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt(), fallbackSiText);
       } else {
-        const fallbackText =
+        const fallbackText2 =
           "Sorry, that's taking a moment longer than expected — could you try that again?";
+        const fallbackSiText2 =
+          language === "si"
+            ? await translateFromEnglish(fallbackText2, "si", Array.from(productCache.values()))
+            : null;
         events.push({
           type: "text",
-          content:
-            language === "si"
-              ? await translateFromEnglish(fallbackText, "si", Array.from(productCache.values()))
-              : fallbackText,
+          content: fallbackText2,
+          ...(fallbackSiText2 ? { content_si: fallbackSiText2 } : {}),
         });
-        persistMessageBestEffort(conversationId, "bot", "text", fallbackText, null, nextCreatedAt());
+        persistMessageBestEffort(conversationId, "bot", "text", fallbackText2, null, nextCreatedAt(), fallbackSiText2);
       }
     } else {
       const looksLikeTagEcho = (text: string) =>
@@ -1184,18 +1196,20 @@ app.post("/api/chat", async (req, res) => {
             : "Sorry, I glitched there for a second — could you say that again?";
       }
 
+      const siContent =
+        language === "si"
+          ? await translateFromEnglish(finalContent, "si", Array.from(productCache.values()))
+          : null;
       events.push({
         type: "text",
-        content:
-          language === "si"
-            ? await translateFromEnglish(finalContent, "si", Array.from(productCache.values()))
-            : finalContent,
+        content: finalContent,
+        ...(siContent ? { content_si: siContent } : {}),
       });
       // Load-bearing — the model's reply must be in DB so the next turn sees it.
       // Always persisted in English, regardless of the display language —
       // this is what future turns' history reconstruction feeds back to the
       // model, and it should only ever see English there.
-      await persistMessage(conversationId, "bot", "text", finalContent, null, nextCreatedAt());
+      await persistMessage(conversationId, "bot", "text", finalContent, null, nextCreatedAt(), undefined, siContent);
     }
 
     // Await the title promise — it was running in parallel with the main loop

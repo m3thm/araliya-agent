@@ -1,4 +1,5 @@
 import type { ChatMessageItem } from "../../types";
+import { usePrefsStore } from "../../store/prefsStore";
 import ProductCard from "./ProductCard";
 
 interface Props {
@@ -6,6 +7,17 @@ interface Props {
 }
 
 export default function BotMessage({ message }: Props) {
+  const language = usePrefsStore((s) => s.language);
+
+  // When the language toggle is "si" and a Sinhala translation is available,
+  // show that instead of the English original. Since we subscribe to the
+  // prefs store via Zustand, every BotMessage re-renders instantly when the
+  // user switches the language dropdown — no manual event wiring needed.
+  const displayContent =
+    message.type === "text" && language === "si" && message.content_si
+      ? message.content_si
+      : message.content;
+
   return (
     <div className="flex gap-3">
       <div
@@ -21,7 +33,7 @@ export default function BotMessage({ message }: Props) {
 
         {message.type === "text" && (
           <div className="text-sm leading-relaxed text-ink whitespace-pre-wrap break-words">
-            {message.content}
+            {displayContent}
           </div>
         )}
 

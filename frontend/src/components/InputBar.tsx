@@ -81,7 +81,7 @@ export default function InputBar() {
           addBotProduct(event.product);
           await wait(250);
         } else if (event.type === "text") {
-          addBotText(event.content);
+          addBotText(event.content, event.content_si);
         } else if (event.type === "checkout-prep") {
           setGiftDetails(event.giftDetails);
           setCartOpen(true);

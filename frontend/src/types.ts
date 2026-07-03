@@ -15,6 +15,11 @@ export interface ChatMessageItem {
   role: "user" | "bot";
   type: MessageType;
   content?: string;
+  /** Sinhala translation of the bot's English text. Present only for bot
+   *  messages that were generated while the language toggle was set to
+   *  Sinhala. Absent means the message was created in English-only mode
+   *  or is an older message from before bilingual support existed. */
+  content_si?: string;
   product?: Product;
   toolLabel?: string;
   /** Present when type is "checkout-prep" — whatever fields the model had collected so far. */
@@ -25,7 +30,7 @@ export interface ChatMessageItem {
 export type ChatEvent =
   | { type: "tool-call"; label: string }
   | { type: "product"; product: Product }
-  | { type: "text"; content: string }
+  | { type: "text"; content: string; content_si?: string }
   | { type: "checkout-prep"; giftDetails: GiftDetails }
   | { type: "add-to-cart"; items: CartItem[] }
   | { type: "order-tracked"; order: Record<string, unknown> };
