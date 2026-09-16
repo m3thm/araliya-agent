@@ -616,20 +616,15 @@ async function verifyJwt(authHeader: string | undefined): Promise<string | null>
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
 
-  // Use a per-request anon client to validate the token — createClient with
-  // the anon key and then getUser() honours the token's claims and checks the
-  // Supabase JWT secret. The service-role client bypasses this, so we use
-  // a separate client here deliberately.
   const url = process.env.SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!url || !anonKey) return null;
 
   const client = createClient(url, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
   });
 
-  const { data, error } = await client.auth.getUser();
+  const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) return null;
   return data.user.id;
 }
